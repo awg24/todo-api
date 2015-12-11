@@ -1,5 +1,6 @@
 var express = require("express");
 var bodyParser = require("body-parser");
+var _ = require("underscore");
 var app = express();
 var PORT = process.env.PORT || 3000;
 var todos = [];
@@ -17,24 +18,30 @@ app.get("/todos", function(req, res){
 
 app.get("/todos/:id", function(req, res){
 	var todoId = parseInt(req.params.id, 10);
-	var flag = true;
-	for(var i = 0; i < todos.length; i++){
-		if(todos[i].id === todoId){
-			flag = false;
-			res.json(todos[i]);
-			break;
-		}
-	}
-	if(flag){
+	var matchedTodo = _.findWhere(todos,{id: todoId});
+
+	if(matchedTodo){
+		res.json(matchedTodo);
+	} else {
 		res.status(404).send("Todo Item could not be found");
 	}
+
 });
 
 app.post("/todos", function(req,res){
 	var body = req.body;
-	body.id = todoNextId++;
-	todos.push(body);
-	res.json(body);
+	if(!_.isBoolean(body.completed)){
+		return res.status(400).send("Completed Field must be true or false");
+	} else if(!_.isString(body.description)){
+		return res.status(400).send("description must be a string");
+	} else if(!body.description.trim()){
+		return res.status(400).send("there must be text present!");
+	}
+	body.description = body.description.trim();
+	var santizedObject = _.pick(body, "description", "completed");
+	santizedObject.id = todoNextId++;
+	todos.push(santizedObject);
+	res.json(santizedObject);
 });
 
 app.listen(PORT, function(){
