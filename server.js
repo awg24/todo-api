@@ -6,6 +6,6 @@ app.get("/", function(req,res){
 	res.send("todo is up");
 });
 
-app.listen.(PORT, function(){
+app.listen(PORT, function(){
 	console.log("express is listening on "+PORT);
 });
