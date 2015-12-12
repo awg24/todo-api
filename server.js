@@ -13,7 +13,22 @@ app.get("/", function(req,res){
 });
 
 app.get("/todos", function(req, res){
-	res.json(todos);
+	var query = req.query;
+	var sentinal = query.completed;
+
+	if(!_.isEmpty(query)){
+		var filtered = todos.filter(function(el){
+			var stringed = el.completed.toString();
+			if(stringed === sentinal){
+				return el;
+			}
+		});
+		console.log(filtered);
+		res.json(filtered);
+	} else {
+		res.json(todos);
+	}
+	
 });
 
 app.get("/todos/:id", function(req, res){
@@ -51,10 +66,36 @@ app.delete("/todos/:id", function(req, res){
 		res.status(404).send({error: "Item could not be found"});
 	} else {
 		todos = _.without(todos, matchedTodo);
-		console.log(todos);
 		res.send(matchedTodo);
 	}
 	
+});
+
+app.put("/todos/:id", function(req, res){
+	var matchedTodo = _.findWhere(todos, {id: parseInt(req.params.id)});
+	var body = req.body;
+	if(!matchedTodo){
+		res.status(404).send({error: "item not found"});
+	} else {
+		body = _.pick(body, "description", "completed");
+		if(body.hasOwnProperty("completed")){
+			if(!_.isBoolean(body.completed)){
+				 return res.status(400).send("Completed must be eithe true or false");
+			}
+			matchedTodo.completed = body.completed;
+		}
+		if(body.hasOwnProperty("description")){
+			if(!_.isString(body.description)){
+				return res.status(400).send("description must be of type string");
+			} else if(!body.description.trim()){
+				return res.status(400).send("must not be empty");
+			}
+			matchedTodo.description = body.description;
+		}
+		var index = todos.indexOf(matchedTodo);
+		todos.splice(index, 1, matchedTodo);
+		res.send(matchedTodo);
+	}
 });
 
 app.listen(PORT, function(){
