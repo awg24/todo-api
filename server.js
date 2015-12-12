@@ -14,21 +14,30 @@ app.get("/", function(req,res){
 
 app.get("/todos", function(req, res){
 	var query = req.query;
-	var sentinal = query.completed;
 
 	if(!_.isEmpty(query)){
-		var filtered = todos.filter(function(el){
-			var stringed = el.completed.toString();
-			if(stringed === sentinal){
-				return el;
-			}
-		});
-		console.log(filtered);
-		res.json(filtered);
+		if(query.hasOwnProperty("completed") && query.hasOwnProperty("q")){
+			var sentinal = query.completed;
+			var filtered = todos.filter(function(el){
+				var stringed = el.completed.toString();
+				if(stringed === sentinal && el.description.indexOf(query.q) > -1){
+					return el;
+				}
+			});
+			res.json(filtered);
+		} else if(query.hasOwnProperty("completed")){
+			var completed = (query.completed === "true");
+			var completedArray = _.where(todos, {completed: completed})
+			res.json(completedArray);
+		} else if(query.hasOwnProperty("q") && query.q.length > 0){
+			var searched = _.filter(todos, function(el){
+				return el.description.indexOf(query.q) > -1;
+			});
+			res.json(searched);
+		}
 	} else {
 		res.json(todos);
-	}
-	
+	}	
 });
 
 app.get("/todos/:id", function(req, res){
