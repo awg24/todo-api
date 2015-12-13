@@ -1,6 +1,7 @@
 var express = require("express");
 var bodyParser = require("body-parser");
 var _ = require("underscore");
+var db = require("./db.js");
 var app = express();
 var PORT = process.env.PORT || 3000;
 var todos = [];
@@ -15,29 +16,37 @@ app.get("/", function(req,res){
 app.get("/todos", function(req, res){
 	var query = req.query;
 
-	if(!_.isEmpty(query)){
-		if(query.hasOwnProperty("completed") && query.hasOwnProperty("q")){
-			var sentinal = query.completed;
-			var filtered = todos.filter(function(el){
-				var stringed = el.completed.toString();
-				if(stringed === sentinal && el.description.indexOf(query.q) > -1){
-					return el;
-				}
-			});
-			res.json(filtered);
-		} else if(query.hasOwnProperty("completed")){
-			var completed = (query.completed === "true");
-			var completedArray = _.where(todos, {completed: completed})
-			res.json(completedArray);
-		} else if(query.hasOwnProperty("q") && query.q.length > 0){
-			var searched = _.filter(todos, function(el){
-				return el.description.indexOf(query.q) > -1;
-			});
-			res.json(searched);
-		}
-	} else {
-		res.json(todos);
-	}	
+	// if(!_.isEmpty(query)){
+	// 	if(query.hasOwnProperty("completed") && query.hasOwnProperty("q")){
+	// 		var sentinal = query.completed;
+	// 		var filtered = todos.filter(function(el){
+	// 			var stringed = el.completed.toString();
+	// 			if(stringed === sentinal && el.description.indexOf(query.q) > -1){
+	// 				return el;
+	// 			}
+	// 		});
+	// 		res.json(filtered);
+	// 	} else if(query.hasOwnProperty("completed")){
+	// 		var completed = (query.completed === "true");
+	// 		var completedArray = _.where(todos, {completed: completed})
+	// 		res.json(completedArray);
+	// 	} else if(query.hasOwnProperty("q") && query.q.length > 0){
+	// 		var searched = _.filter(todos, function(el){
+	// 			return el.description.indexOf(query.q) > -1;
+	// 		});
+	// 		res.json(searched);
+	// 	}
+	// } else {
+	// 	res.json(todos);
+	// }	
+	db.todo.findAll().then(function(allTodos){
+		console.log(allTodos);
+		var todos = [];
+		allTodos.forEach(function(todo){
+			todos.push(todo.toJSON());
+		});
+		res.send(todos);
+	});
 });
 
 app.get("/todos/:id", function(req, res){
@@ -54,18 +63,22 @@ app.get("/todos/:id", function(req, res){
 
 app.post("/todos", function(req,res){
 	var body = req.body;
-	if(!_.isBoolean(body.completed)){
-		return res.status(400).send("Completed Field must be true or false");
-	} else if(!_.isString(body.description)){
-		return res.status(400).send("description must be a string");
-	} else if(!body.description.trim()){
-		return res.status(400).send("there must be text present!");
-	}
-	body.description = body.description.trim();
-	var santizedObject = _.pick(body, "description", "completed");
-	santizedObject.id = todoNextId++;
-	todos.push(santizedObject);
-	res.json(santizedObject);
+	// if(!_.isBoolean(body.completed)){
+	// 	return res.status(400).send("Completed Field must be true or false");
+	// } else if(!_.isString(body.description)){
+	// 	return res.status(400).send("description must be a string");
+	// } else if(!body.description.trim()){
+	// 	return res.status(400).send("there must be text present!");
+	// }
+	// body.description = body.description.trim();
+	// var santizedObject = _.pick(body, "description", "completed");
+	// santizedObject.id = todoNextId++;
+	// todos.push(santizedObject);
+	// res.json(santizedObject);
+
+	db.todo.create(body).then(function(todo){
+		res.send(todo.toJSON());
+	});
 });
 
 app.delete("/todos/:id", function(req, res){
@@ -107,6 +120,9 @@ app.put("/todos/:id", function(req, res){
 	}
 });
 
-app.listen(PORT, function(){
-	console.log("express is listening on "+PORT);
+db.sequelize.sync().then(function(){
+	app.listen(PORT, function(){
+		console.log("express is listening on " + PORT);
+	});
 });
+
