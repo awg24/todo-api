@@ -163,9 +163,13 @@ app.put("/todos/:id", function(req, res){
 		toUpdate.completed = body.completed;
 	}
 	db.todo.findById(todoId).then(function(todo){
-		db.todo.update(toUpdate, {where:{id: todoId}}).then(function(){
-			res.send("updated!");
-		});
+		if(todo){
+			db.todo.update(toUpdate, {where:{id: todoId}}).then(function(){
+				res.send("updated!");
+			});
+		} else {
+			res.status(404).send("item not found!");
+		}
 	}).catch(function(){
 		res.status(400).send("update failed");
 	});
