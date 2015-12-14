@@ -15,6 +15,8 @@ app.get("/", function(req,res){
 
 app.get("/todos", function(req, res){
 	var query = req.query;
+	var where = {};
+	var flag = (query.completed === "true");
 
 	// if(!_.isEmpty(query)){
 	// 	if(query.hasOwnProperty("completed") && query.hasOwnProperty("q")){
@@ -38,26 +40,53 @@ app.get("/todos", function(req, res){
 	// 	}
 	// } else {
 	// 	res.json(todos);
-	// }	
-	db.todo.findAll().then(function(allTodos){
-		console.log(allTodos);
-		var todos = [];
-		allTodos.forEach(function(todo){
-			todos.push(todo.toJSON());
-		});
-		res.send(todos);
+	// }
+	if(query.hasOwnProperty("completed") && query.hasOwnProperty("q")){
+		where.completed = flag;
+		where.description = {
+			$like: "%"+query.q+"%"
+		}
+	} else if(query.hasOwnProperty("completed")){
+		where.completed = flag;
+	} else if(query.hasOwnProperty("q") && query.q.length > 0){
+		where.description = {
+			$like: "%"+query.q+"%"
+		}
+	}
+
+	db.todo.findAll({where: where}).then(function(allTodos){
+		if(allTodos.length > 0){
+			var todos = [];
+			allTodos.forEach(function(todo){
+				todos.push(todo.toJSON());
+			});
+			res.send(todos);
+		} else {
+			res.send("No Todos Found");
+		}
 	});
 });
 
 app.get("/todos/:id", function(req, res){
 	var todoId = parseInt(req.params.id, 10);
-	var matchedTodo = _.findWhere(todos,{id: todoId});
+	// var matchedTodo = _.findWhere(todos,{id: todoId});
 
-	if(matchedTodo){
-		res.json(matchedTodo);
-	} else {
-		res.status(404).send("Todo Item could not be found");
-	}
+	// if(matchedTodo){
+	// 	res.json(matchedTodo);
+	// } else {
+	// 	res.status(404).send("Todo Item could not be found");
+	// }
+
+	db.todo.findById(todoId).then(function(todo){
+		if(!!todo){
+			res.json(todo.toJSON())
+		} else {
+			res.status(404).send("Item Not Found, idiot")
+		}
+		
+	}, function(e){
+		res.status(500).send(e);
+	});
 
 });
 
@@ -83,41 +112,64 @@ app.post("/todos", function(req,res){
 
 app.delete("/todos/:id", function(req, res){
 	var todoId = parseInt(req.params.id, 10);
-	var matchedTodo = _.findWhere(todos,{id: todoId});
-	if(!matchedTodo){
-		res.status(404).send({error: "Item could not be found"});
-	} else {
-		todos = _.without(todos, matchedTodo);
-		res.send(matchedTodo);
-	}
+	// var matchedTodo = _.findWhere(todos,{id: todoId});
+	// if(!matchedTodo){
+	// 	res.status(404).send({error: "Item could not be found"});
+	// } else {
+	// 	todos = _.without(todos, matchedTodo);
+	// 	res.send(matchedTodo);
+	// }
+	db.todo.destroy({where: {id: todoId}}).then(function(){
+		res.send("deleted");
+	}, function(e){
+		res.status(500).send(e);
+	});
 	
 });
 
 app.put("/todos/:id", function(req, res){
-	var matchedTodo = _.findWhere(todos, {id: parseInt(req.params.id)});
+	//var matchedTodo = _.findWhere(todos, {id: parseInt(req.params.id)});
+	var todoId = parseInt(req.params.id, 10);
 	var body = req.body;
-	if(!matchedTodo){
-		res.status(404).send({error: "item not found"});
-	} else {
-		body = _.pick(body, "description", "completed");
-		if(body.hasOwnProperty("completed")){
-			if(!_.isBoolean(body.completed)){
-				 return res.status(400).send("Completed must be eithe true or false");
-			}
-			matchedTodo.completed = body.completed;
-		}
-		if(body.hasOwnProperty("description")){
-			if(!_.isString(body.description)){
-				return res.status(400).send("description must be of type string");
-			} else if(!body.description.trim()){
-				return res.status(400).send("must not be empty");
-			}
-			matchedTodo.description = body.description;
-		}
-		var index = todos.indexOf(matchedTodo);
-		todos.splice(index, 1, matchedTodo);
-		res.send(matchedTodo);
+	var toUpdate = {};
+	// if(!matchedTodo){
+	// 	res.status(404).send({error: "item not found"});
+	// } else {
+	// 	body = _.pick(body, "description", "completed");
+	// 	if(body.hasOwnProperty("completed")){
+	// 		if(!_.isBoolean(body.completed)){
+	// 			 return res.status(400).send("Completed must be eithe true or false");
+	// 		}
+	// 		matchedTodo.completed = body.completed;
+	// 	}
+	// 	if(body.hasOwnProperty("description")){
+	// 		if(!_.isString(body.description)){
+	// 			return res.status(400).send("description must be of type string");
+	// 		} else if(!body.description.trim()){
+	// 			return res.status(400).send("must not be empty");
+	// 		}
+	// 		matchedTodo.description = body.description;
+	// 	}
+	// 	var index = todos.indexOf(matchedTodo);
+	// 	todos.splice(index, 1, matchedTodo);
+	// 	res.send(matchedTodo);
+	// }
+	if(body.hasOwnProperty("description") && body.hasOwnProperty("completed")){
+		toUpdate.description = body.description;
+		toUpdate.completed = body.completed;
+	} else if(body.hasOwnProperty("description")){
+		toUpdate.description = body.description;
+	} else if(body.hasOwnProperty("completed")){
+		toUpdate.completed = body.completed;
 	}
+	db.todo.findById(todoId).then(function(todo){
+		db.todo.update(toUpdate, {where:{id: todoId}}).then(function(){
+			res.send("updated!");
+		});
+	}).catch(function(){
+		res.status(400).send("update failed");
+	});
+
 });
 
 db.sequelize.sync().then(function(){
