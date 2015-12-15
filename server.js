@@ -176,6 +176,15 @@ app.put("/todos/:id", function(req, res){
 
 });
 
+app.post("/users", function(req, res){
+	var newUser = _.pick(req.body, "email","password");
+	db.user.create(newUser).then(function(user){
+		res.send(user);
+	}, function(e){
+		res.status(400).send(e);
+	});
+});
+
 db.sequelize.sync().then(function(){
 	app.listen(PORT, function(){
 		console.log("express is listening on " + PORT);
